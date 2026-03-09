@@ -1,3 +1,13 @@
+export interface ActionItem {
+  type: 'missing_data' | 'low_score' | 'opportunity'
+  field: string
+  potential_points: number
+  label: string
+  detail: string
+  priority: 'high' | 'medium' | 'low'
+  factor: string
+}
+
 export interface Company {
   id: string
   company_name: string
@@ -17,6 +27,7 @@ export interface Company {
   mrr_growth_rate_pct: number | null
   runway_months: number | null
   monthly_revenue: number | null
+  top_action_items: ActionItem[]
 }
 
 export interface GrowthMetrics {
@@ -49,6 +60,7 @@ export interface CompanyDetail extends Company {
   comments: Comment[]
   metric_snapshots: MetricSnapshot[]
   growth_metrics: GrowthMetrics[]
+  action_items: ActionItem[]
 }
 
 export interface Comment {

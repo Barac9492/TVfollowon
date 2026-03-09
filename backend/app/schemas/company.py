@@ -4,6 +4,16 @@ from pydantic import BaseModel
 from datetime import datetime
 
 
+class ActionItem(BaseModel):
+    type: str           # "missing_data" | "low_score" | "opportunity"
+    field: str          # field name or factor name
+    potential_points: int
+    label: str          # Korean user-facing label
+    detail: str = ""    # Additional context
+    priority: str       # "high" | "medium" | "low"
+    factor: str         # which scoring factor
+
+
 class CompanyListItem(BaseModel):
     id: str
     company_name: str
@@ -24,6 +34,8 @@ class CompanyListItem(BaseModel):
     mrr_growth_rate_pct: Optional[float] = None
     runway_months: Optional[float] = None
     monthly_revenue: Optional[float] = None
+    # Actionable insights (top 1-2 items for card)
+    top_action_items: List[ActionItem] = []
 
     class Config:
         from_attributes = True
@@ -62,6 +74,8 @@ class CompanyDetail(CompanyListItem):
     comments: List["CommentItem"] = []
     metric_snapshots: List["MetricSnapshotItem"] = []
     growth_metrics: List["GrowthMetricsItem"] = []
+    # Full actionable insights list
+    action_items: List[ActionItem] = []
 
 
 class CommentItem(BaseModel):

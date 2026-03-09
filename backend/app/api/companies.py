@@ -14,7 +14,9 @@ from app.schemas.company import (
     MetricSnapshotItem,
     GrowthMetricsItem,
     DashboardStats,
+    ActionItem,
 )
+from app.services.action_items import generate_action_items, get_top_action_items
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -70,6 +72,9 @@ def list_companies(
             GrowthMetrics.company_id == c.id
         ).order_by(GrowthMetrics.metric_date.desc()).first()
 
+        all_actions = generate_action_items(c.score_details, latest_gm, comment_count)
+        top_actions = get_top_action_items(all_actions, 2)
+
         item = CompanyListItem(
             id=c.id,
             company_name=c.company_name,
@@ -89,6 +94,7 @@ def list_companies(
             mrr_growth_rate_pct=latest_gm.mrr_growth_rate_pct if latest_gm else None,
             runway_months=latest_gm.runway_months if latest_gm else None,
             monthly_revenue=latest_gm.monthly_revenue if latest_gm else None,
+            top_action_items=[ActionItem(**a) for a in top_actions],
         )
         items.append(item)
 
@@ -155,6 +161,9 @@ def get_company_detail(company_id: str, db: Session = Depends(get_db)):
 
     latest_gm = growth_metrics[0] if growth_metrics else None
 
+    all_actions = generate_action_items(company.score_details, latest_gm, len(comments))
+    top_actions = get_top_action_items(all_actions, 2)
+
     return CompanyDetail(
         id=company.id,
         company_name=company.company_name,
@@ -180,4 +189,6 @@ def get_company_detail(company_id: str, db: Session = Depends(get_db)):
         comments=[CommentItem.model_validate(c) for c in comments],
         metric_snapshots=[MetricSnapshotItem.model_validate(s) for s in snapshots],
         growth_metrics=[GrowthMetricsItem.model_validate(g) for g in growth_metrics],
+        top_action_items=[ActionItem(**a) for a in top_actions],
+        action_items=[ActionItem(**a) for a in all_actions],
     )

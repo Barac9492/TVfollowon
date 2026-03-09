@@ -4,6 +4,7 @@ import CompanyHeader from './CompanyHeader'
 import MetricChart from './MetricChart'
 import CommentsList from './CommentsList'
 import SlackPanel from './SlackPanel'
+import ActionItemsPanel from './ActionItemsPanel'
 import type { GrowthMetrics } from '../../types'
 import { formatGrowthRate, formatRunway, formatRevenue, formatDate } from '../../utils/formatters'
 
@@ -44,6 +45,9 @@ export default function CompanyDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         <div className="space-y-6">
+          {company.action_items && company.action_items.length > 0 && (
+            <ActionItemsPanel items={company.action_items} />
+          )}
           {company.growth_metrics && company.growth_metrics.length > 0 && (
             <GrowthDataPanel metrics={company.growth_metrics} />
           )}

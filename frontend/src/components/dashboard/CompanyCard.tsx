@@ -70,6 +70,25 @@ export default function CompanyCard({ company }: { company: Company }) {
         )}
       </div>
 
+      {company.top_action_items && company.top_action_items.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2.5">
+          {company.top_action_items.map((item, i) => (
+            <span
+              key={i}
+              className={`text-[11px] px-2 py-0.5 rounded-full ${
+                item.priority === 'high'
+                  ? 'bg-red-50 text-red-600'
+                  : item.priority === 'medium'
+                  ? 'bg-amber-50 text-amber-600'
+                  : 'bg-slate-50 text-slate-500'
+              }`}
+            >
+              {item.priority === 'high' ? '⚠️' : '📋'} {item.label}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
         <div className="flex items-center gap-2">
           <span className={`text-xs px-2 py-0.5 rounded-full ${
