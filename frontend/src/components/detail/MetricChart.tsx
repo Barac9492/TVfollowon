@@ -35,7 +35,7 @@ export default function MetricChart({ snapshots, currency }: Props) {
           <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" />
           <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
           <Tooltip
-            formatter={(value: number) => [`${value} ${unit}`, '밸류에이션']}
+            formatter={(value) => [`${value} ${unit}`, '밸류에이션']}
             contentStyle={{ fontSize: 12, borderRadius: 8 }}
           />
           <Area
