@@ -205,7 +205,8 @@ Keep responses concise and actionable. Use Korean unless the user writes in Engl
             raise ValueError(f"채팅 실패: {str(e)}")
 
     def _parse_metrics_response(self, response_text: str) -> dict:
-        """Extract JSON from Claude's response, handling markdown code blocks."""
+        """Extract JSON from Claude's response, handling markdown code blocks.
+        Falls back to a default dict with notes if no JSON is found."""
         # Try to extract JSON from markdown code block
         json_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", response_text, re.DOTALL)
         if json_match:
@@ -216,14 +217,32 @@ Keep responses concise and actionable. Use Korean unless the user writes in Engl
         try:
             return json.loads(text.strip())
         except json.JSONDecodeError:
-            # Last resort: find any JSON object in the text
+            # Try to find any JSON object in the text
             brace_match = re.search(r"\{.*\}", text, re.DOTALL)
             if brace_match:
                 try:
                     return json.loads(brace_match.group(0))
                 except json.JSONDecodeError:
                     pass
-            raise ValueError(f"JSON 파싱 실패: {text[:200]}")
+
+            # Graceful fallback: return empty metrics with the text as notes
+            # This handles cases where Claude returns a text summary instead of JSON
+            return self._empty_metrics(notes=response_text[:500])
+
+    @staticmethod
+    def _empty_metrics(notes: str = "") -> dict:
+        """Return a default metrics dict with all fields null."""
+        return {
+            "monthly_revenue": None, "revenue_currency": "KRW",
+            "arr": None, "mrr": None, "mrr_growth_rate_pct": None,
+            "monthly_burn": None, "cash_on_hand": None, "runway_months": None,
+            "headcount": None, "paying_customers": None, "ndr_pct": None,
+            "key_metric_value": None, "key_metric_name": None,
+            "last_funding_date": None, "last_funding_amount": None,
+            "last_funding_round": None,
+            "investors": [], "sources": [],
+            "notes": notes or "데이터를 찾을 수 없습니다.",
+        }
 
 
 research_service = ResearchService()

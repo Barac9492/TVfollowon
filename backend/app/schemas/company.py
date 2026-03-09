@@ -70,6 +70,24 @@ class GrowthMetricsItem(BaseModel):
         from_attributes = True
 
 
+class ScoreHistoryItem(BaseModel):
+    id: int
+    score_value: int
+    traffic_score: str
+    score_details: Optional[str] = None
+    previous_score_value: Optional[int] = None
+    previous_traffic_score: Optional[str] = None
+    score_change: int = 0
+    change_reasons: Optional[str] = None  # JSON string
+    meta_insight: Optional[str] = None
+    trigger_type: Optional[str] = None
+    trigger_detail: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class CompanyDetail(CompanyListItem):
     score_details: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -77,6 +95,7 @@ class CompanyDetail(CompanyListItem):
     comments: List["CommentItem"] = []
     metric_snapshots: List["MetricSnapshotItem"] = []
     growth_metrics: List["GrowthMetricsItem"] = []
+    score_history: List["ScoreHistoryItem"] = []
     # Full actionable insights list
     action_items: List[ActionItem] = []
 

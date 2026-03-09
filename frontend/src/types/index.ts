@@ -55,6 +55,32 @@ export interface GrowthMetrics {
   notes: string | null
 }
 
+export interface ScoreHistoryEntry {
+  id: number
+  score_value: number
+  traffic_score: 'green' | 'yellow' | 'red'
+  score_details: string | null
+  previous_score_value: number | null
+  previous_traffic_score: string | null
+  score_change: number
+  change_reasons: string | null  // JSON string
+  meta_insight: string | null
+  trigger_type: string | null
+  trigger_detail: string | null
+  created_at: string | null
+}
+
+export interface ScoreChangeReason {
+  factor: string
+  factor_label: string
+  old_value: number
+  new_value: number
+  max_value?: number
+  delta: number
+  direction: 'up' | 'down'
+  detail: string
+}
+
 export interface CompanyDetail extends Company {
   score_details: string | null
   created_at: string | null
@@ -62,6 +88,7 @@ export interface CompanyDetail extends Company {
   comments: Comment[]
   metric_snapshots: MetricSnapshot[]
   growth_metrics: GrowthMetrics[]
+  score_history: ScoreHistoryEntry[]
   action_items: ActionItem[]
 }
 

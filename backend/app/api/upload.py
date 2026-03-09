@@ -14,13 +14,14 @@ from app.models.upload import UploadHistory
 from app.schemas.upload import UploadResponse, UploadHistoryItem
 from app.services.excel_parser import parse_portfolio_excel, parse_comments_excel, parse_growth_excel
 from app.services.scoring import compute_traffic_score
+from app.services.score_tracker import record_score_change
 from app.utils.currency import normalize_to_usd
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
 
-def _rescore_all(db: Session):
-    """Rescore all companies with growth-focused algorithm."""
+def _rescore_all(db: Session, trigger_type: str = "upload", trigger_detail: str = ""):
+    """Rescore all companies with growth-focused algorithm and record history."""
     for company in db.query(Company).all():
         comments = db.query(InvestmentComment).filter(
             InvestmentComment.company_id == company.id
@@ -31,6 +32,18 @@ def _rescore_all(db: Session):
         ).order_by(GrowthMetrics.metric_date.desc()).first()
 
         color, value, details = compute_traffic_score(company, comments, latest_growth)
+
+        # Record score history
+        record_score_change(
+            company=company,
+            new_color=color,
+            new_value=value,
+            new_details_json=details,
+            trigger_type=trigger_type,
+            trigger_detail=trigger_detail,
+            db=db,
+        )
+
         company.traffic_score = color
         company.score_value = value
         company.score_details = details
@@ -108,7 +121,7 @@ async def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(g
     upload.rows_updated = updated
     upload.errors = json.dumps(errors, ensure_ascii=False) if errors else None
 
-    _rescore_all(db)
+    _rescore_all(db, trigger_type="upload", trigger_detail="데이터 업로드")
     db.commit()
 
     return UploadResponse(
@@ -168,7 +181,7 @@ async def upload_comments(file: UploadFile = File(...), db: Session = Depends(ge
     upload.rows_created = created
     upload.errors = json.dumps(errors, ensure_ascii=False) if errors else None
 
-    _rescore_all(db)
+    _rescore_all(db, trigger_type="upload", trigger_detail="데이터 업로드")
     db.commit()
 
     return UploadResponse(
@@ -251,7 +264,7 @@ async def upload_growth(file: UploadFile = File(...), db: Session = Depends(get_
     upload.errors = json.dumps(errors, ensure_ascii=False) if errors else None
 
     db.flush()
-    _rescore_all(db)
+    _rescore_all(db, trigger_type="upload", trigger_detail="데이터 업로드")
     db.commit()
 
     return UploadResponse(

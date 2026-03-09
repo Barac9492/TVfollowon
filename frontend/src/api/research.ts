@@ -45,6 +45,28 @@ export function fetchResearchHistory(companyId: string): Promise<ResearchLogItem
   return apiFetch(`/research/history/${companyId}`)
 }
 
+export interface AutoResearchResult {
+  company_id: string
+  company_name: string
+  success: boolean
+  has_data: boolean
+  confidence: string
+  notes: string | null
+  error: string | null
+}
+
+export function autoResearchCompany(companyId: string): Promise<AutoResearchResult> {
+  return apiFetch(`/research/auto-research/${companyId}`, {
+    method: 'POST',
+  })
+}
+
+export function clearGrowthData(): Promise<{ deleted: number; message: string }> {
+  return apiFetch('/research/clear-growth-data', {
+    method: 'DELETE',
+  })
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string

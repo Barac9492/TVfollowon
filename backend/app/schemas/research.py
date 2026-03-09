@@ -64,3 +64,20 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+
+
+class AutoResearchResult(BaseModel):
+    company_id: str
+    company_name: str
+    success: bool
+    has_data: bool = False
+    confidence: str = "low"
+    notes: Optional[str] = None
+    error: Optional[str] = None
+
+
+class BulkResearchResponse(BaseModel):
+    total: int
+    completed: int
+    with_data: int
+    results: List[AutoResearchResult]

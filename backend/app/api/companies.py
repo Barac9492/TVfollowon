@@ -6,6 +6,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models.company import Company, GrowthMetrics
 from app.models.comment import InvestmentComment
+from app.models.score_history import ScoreHistory
 from app.schemas.company import (
     CompanyListItem,
     CompanyListResponse,
@@ -13,6 +14,7 @@ from app.schemas.company import (
     CommentItem,
     MetricSnapshotItem,
     GrowthMetricsItem,
+    ScoreHistoryItem,
     DashboardStats,
     ActionItem,
 )
@@ -162,6 +164,11 @@ def get_company_detail(company_id: str, db: Session = Depends(get_db)):
 
     latest_gm = growth_metrics[0] if growth_metrics else None
 
+    # Score history (latest 50 entries)
+    score_hist = db.query(ScoreHistory).filter(
+        ScoreHistory.company_id == company_id
+    ).order_by(ScoreHistory.created_at.desc()).limit(50).all()
+
     all_actions = generate_action_items(company.score_details, latest_gm, len(comments))
     top_actions = get_top_action_items(all_actions, 2)
 
@@ -191,6 +198,7 @@ def get_company_detail(company_id: str, db: Session = Depends(get_db)):
         comments=[CommentItem.model_validate(c) for c in comments],
         metric_snapshots=[MetricSnapshotItem.model_validate(s) for s in snapshots],
         growth_metrics=[GrowthMetricsItem.model_validate(g) for g in growth_metrics],
+        score_history=[ScoreHistoryItem.model_validate(s) for s in score_hist],
         top_action_items=[ActionItem(**a) for a in top_actions],
         action_items=[ActionItem(**a) for a in all_actions],
     )

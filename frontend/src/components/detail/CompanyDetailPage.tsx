@@ -6,6 +6,7 @@ import CommentsList from './CommentsList'
 import SlackPanel from './SlackPanel'
 import ResearchPanel from './ResearchPanel'
 import ActionItemsPanel from './ActionItemsPanel'
+import ScoreHistoryPanel from './ScoreHistoryPanel'
 import type { GrowthMetrics, Investor } from '../../types'
 import { formatGrowthRate, formatRunway, formatRevenue, formatDate } from '../../utils/formatters'
 
@@ -52,6 +53,7 @@ export default function CompanyDetailPage() {
           {company.growth_metrics && company.growth_metrics.length > 0 && (
             <GrowthDataPanel metrics={company.growth_metrics} />
           )}
+          <ScoreHistoryPanel history={company.score_history || []} companyName={company.company_name} />
           <MetricChart snapshots={company.metric_snapshots} currency={company.current_currency} />
           <ScoreBreakdown details={company.score_details} completeness={company.growth_data_completeness} />
         </div>

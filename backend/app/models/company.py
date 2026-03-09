@@ -33,6 +33,7 @@ class Company(Base):
     metric_snapshots = relationship("CompanyMetricSnapshot", back_populates="company", cascade="all, delete-orphan")
     slack_channels = relationship("SlackChannelMapping", back_populates="company", cascade="all, delete-orphan")
     growth_metrics = relationship("GrowthMetrics", back_populates="company", cascade="all, delete-orphan", order_by="GrowthMetrics.metric_date.desc()")
+    score_history = relationship("ScoreHistory", back_populates="company", cascade="all, delete-orphan", order_by="ScoreHistory.created_at.desc()")
 
 
 class CompanyMetricSnapshot(Base):

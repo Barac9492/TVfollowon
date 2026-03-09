@@ -1,6 +1,7 @@
 import StatsBar from './StatsBar'
 import FilterBar from './FilterBar'
 import CompanyCardGrid from './CompanyCardGrid'
+import BulkResearchButton from './BulkResearchButton'
 import { useCompanies, useDashboardStats } from '../../hooks/useCompanies'
 
 export default function DashboardPage() {
@@ -9,9 +10,14 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">포트폴리오 대시보드</h2>
-        <p className="text-sm text-slate-500 mt-1">후속 투자 후보를 한눈에 확인하세요</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">포트폴리오 대시보드</h2>
+          <p className="text-sm text-slate-500 mt-1">후속 투자 후보를 한눈에 확인하세요</p>
+        </div>
+        {data?.items && data.items.length > 0 && (
+          <BulkResearchButton companies={data.items} />
+        )}
       </div>
 
       {stats && <StatsBar stats={stats} onScoreClick={(score) => setFilter('score', filters.score === score ? undefined : score)} activeScore={filters.score} />}

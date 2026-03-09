@@ -3,6 +3,7 @@ from app.models.comment import InvestmentComment
 from app.models.upload import UploadHistory
 from app.models.slack import SlackChannelMapping, SlackMessage, SlackSummary
 from app.models.research import ResearchLog
+from app.models.score_history import ScoreHistory
 
 __all__ = [
     "Company",
@@ -14,4 +15,5 @@ __all__ = [
     "SlackMessage",
     "SlackSummary",
     "ResearchLog",
+    "ScoreHistory",
 ]
