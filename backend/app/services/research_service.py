@@ -38,14 +38,20 @@ Important rules:
 - Extract ALL investor names mentioned (VC firms, angels, corporate investors)
 - The notes field should capture qualitative insights: market position, key customers, product direction, risks"""
 
-WEB_RESEARCH_SYSTEM_PROMPT = """You are a venture capital analyst. Research the given startup company using web search to find:
-1. Latest funding information (round, amount, date, lead investor, other investors)
-2. Revenue and growth metrics (MRR, ARR, growth rate)
-3. Team size and key hires
-4. Customer count and notable customers
-5. Market position and competitive landscape
+WEB_RESEARCH_SYSTEM_PROMPT = """당신은 벤처캐피탈 애널리스트입니다. 주어진 스타트업에 대해 웹 검색을 통해 다음 정보를 조사하세요:
+1. 최신 투자 유치 정보 (라운드, 금액, 날짜, 리드 투자자, 기타 투자자)
+2. 매출 및 성장 지표 (MRR, ARR, 성장률)
+3. 팀 규모 및 주요 채용
+4. 고객 수 및 주요 고객
+5. 시장 포지션 및 경쟁 환경
 
-After researching, provide your findings as JSON in the exact format below. Use null for fields you could not find reliable information about.
+CRITICAL SEARCH INSTRUCTIONS:
+- 반드시 한국어로 검색하세요. 예: "회사명 투자 유치", "회사명 시리즈A", "회사명 매출"
+- 한국어 검색과 영어 검색을 모두 시도하세요
+- 한국 뉴스 소스: 플래텀, 벤처스퀘어, 더벨, 아웃스탠딩, 매일경제, 한국경제 등을 우선 확인
+- 회사명의 한국어/영어 표기를 모두 검색하세요
+
+조사 후 아래 JSON 형식으로 결과를 제공하세요. 확인할 수 없는 필드는 null로 설정하세요.
 
 {
   "monthly_revenue": <number or null, in raw currency units>,
@@ -69,8 +75,8 @@ After researching, provide your findings as JSON in the exact format below. Use 
   "sources": [{"url": "<source url>", "title": "<source title>"}]
 }
 
-Currency note: Korean startups typically report in KRW. Convert 억 = 100,000,000, 만 = 10,000.
-IMPORTANT: List ALL investors you can find across all funding rounds, not just the latest."""
+통화 참고: 한국 스타트업은 보통 KRW 기준. 억 = 100,000,000, 만 = 10,000.
+중요: 최신 라운드뿐만 아니라 모든 라운드의 투자자를 빠짐없이 나열하세요."""
 
 
 class ResearchService:
@@ -118,7 +124,7 @@ class ResearchService:
         if not self.client:
             raise ValueError("AI 서비스를 사용할 수 없습니다. CLAUDE_API_KEY를 확인하세요.")
 
-        context_hint = f"\nAdditional context: {additional_context}" if additional_context else ""
+        context_hint = f"\n추가 정보: {additional_context}" if additional_context else ""
 
         try:
             response = self.client.messages.create(
@@ -128,9 +134,10 @@ class ResearchService:
                 messages=[{
                     "role": "user",
                     "content": (
-                        f"Research this Korean startup company: {company_name}{context_hint}\n\n"
-                        "Search for their latest funding rounds, investors, revenue, team size, "
-                        "and growth metrics. Provide structured JSON output."
+                        f"다음 한국 스타트업을 조사하세요: {company_name}{context_hint}\n\n"
+                        f"'{company_name} 투자 유치', '{company_name} 시리즈', '{company_name} 매출' 등의 "
+                        "한국어 키워드로 검색하세요. 영어로도 검색해보세요. "
+                        "투자 라운드, 투자자, 매출, 팀 규모, 성장 지표를 찾아 구조화된 JSON으로 제공하세요."
                     ),
                 }],
                 tools=[{
@@ -161,37 +168,40 @@ class ResearchService:
         if not self.client:
             raise ValueError("AI 서비스를 사용할 수 없습니다. CLAUDE_API_KEY를 확인하세요.")
 
-        system_prompt = f"""You are a senior venture capital analyst assistant helping evaluate Korean startups for follow-on investment decisions. You speak Korean by default unless the user writes in English.
+        system_prompt = f"""당신은 한국 스타트업 후속 투자를 평가하는 시니어 VC 애널리스트 어시스턴트입니다. 한국어로 응답하세요.
 
-You have web search capability. When the user asks about news, articles, funding announcements, or any information that requires up-to-date data, USE web search proactively. Do not say you cannot search — you CAN.
+웹 검색 기능이 있습니다. 뉴스, 기사, 투자 유치 발표 등 최신 정보가 필요할 때 반드시 웹 검색을 사용하세요.
+
+CRITICAL SEARCH INSTRUCTIONS:
+- 반드시 한국어로 검색하세요. 예: "회사명 투자 유치", "회사명 시리즈A", "회사명 뉴스"
+- 한국어 검색과 영어 검색을 모두 시도하세요
+- 한국 스타트업 뉴스 소스: 플래텀, 벤처스퀘어, 더벨, 아웃스탠딩, 매일경제, 한국경제, 조선비즈, 디지털타임스 등
+- 검색 결과에서 찾은 정보는 반드시 출처 URL과 함께 인용하세요
 
 COMPANY CONTEXT:
 {company_context}
 
 YOUR ROLE:
-- Search the web to find latest news, articles, and announcements about the company
-- Help triangulate growth data when direct metrics are unavailable
-- Suggest alternative data sources and proxy metrics
-- Discuss competitive landscape and market dynamics
-- Provide frameworks for evaluating companies with incomplete data
-- Share approaches for estimating revenue, growth, burn rate from public signals
-- Consider Korean startup ecosystem specifics (TIPS, government grants, local VCs)
+- 웹 검색으로 해당 회사의 최신 뉴스, 기사, 투자 유치 정보를 찾기
+- 직접적인 지표가 없을 때 간접 데이터로 성장성 삼각측량 (triangulation)
+- 경쟁 환경, 시장 동향 분석
+- 불완전한 데이터로 회사 평가하는 프레임워크 제공
+- 공개 신호로 매출, 성장률, 번레이트 추정하는 방법 제안
+- 한국 스타트업 생태계 특성 고려 (TIPS, 정부지원금, 국내 VC 등)
 
-TRIANGULATION APPROACHES you can suggest:
-1. Job postings analysis (headcount growth proxy)
-2. App store rankings / web traffic trends
-3. Industry benchmarks by sector and stage
-4. Press releases and funding announcements
-5. LinkedIn employee count tracking
-6. Government registry data (dart.fss.or.kr for Korean companies)
-7. Customer review volume and trends
-8. Social media presence and engagement growth
-9. Partnership and integration announcements
-10. Patent filings and R&D signals
+TRIANGULATION 방법:
+1. 채용공고 분석 (인원 증가 프록시)
+2. 앱스토어 순위 / 웹 트래픽 추이
+3. 업종 및 단계별 벤치마크
+4. 보도자료 및 투자 유치 공시
+5. LinkedIn 직원 수 추적
+6. dart.fss.or.kr 공시 데이터
+7. 고객 리뷰 양 및 추이
+8. SNS 활동 및 팔로워 성장
+9. 파트너십 및 연동 발표
+10. 특허 출원 및 R&D 신호
 
-When the user asks you to find articles, news, or any web-based information, ALWAYS use web search first before responding. Include source URLs when citing information from searches.
-
-Keep responses concise and actionable. Use Korean unless the user writes in English."""
+사용자가 기사, 뉴스, 웹 기반 정보를 요청하면 반드시 웹 검색을 먼저 수행한 후 응답하세요. 출처 URL을 반드시 포함하세요."""
 
         messages = []
         for msg in history:
