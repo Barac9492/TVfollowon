@@ -44,3 +44,23 @@ export function approveResearch(
 export function fetchResearchHistory(companyId: string): Promise<ResearchLogItem[]> {
   return apiFetch(`/research/history/${companyId}`)
 }
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export function chatWithAgent(
+  companyId: string,
+  message: string,
+  history: ChatMessage[],
+): Promise<{ reply: string }> {
+  return apiFetch('/research/chat', {
+    method: 'POST',
+    body: JSON.stringify({
+      company_id: companyId,
+      message,
+      history,
+    }),
+  })
+}

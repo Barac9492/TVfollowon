@@ -49,3 +49,18 @@ class ResearchLogItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    company_id: str
+    message: str
+    history: List[ChatMessage] = []
+
+
+class ChatResponse(BaseModel):
+    reply: str

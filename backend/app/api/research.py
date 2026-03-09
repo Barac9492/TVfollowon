@@ -16,6 +16,8 @@ from app.schemas.research import (
     ApproveRequest,
     ApproveResponse,
     ResearchLogItem,
+    ChatRequest,
+    ChatResponse,
 )
 from app.services.research_service import research_service
 from app.services.scoring import compute_traffic_score
@@ -212,6 +214,78 @@ def approve_research(
         company_id=log.company_id,
         message="성장 데이터가 저장되었습니다.",
     )
+
+
+@router.post("/chat", response_model=ChatResponse)
+def chat_with_agent(data: ChatRequest, db: Session = Depends(get_db)):
+    """Multi-turn conversation about a company's growth and data triangulation."""
+    if not research_service.enabled:
+        raise HTTPException(status_code=400, detail="AI 서비스가 비활성화되어 있습니다.")
+
+    company = db.query(Company).filter(Company.id == data.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="회사를 찾을 수 없습니다.")
+
+    # Build company context from database
+    latest_gm = db.query(GrowthMetrics).filter(
+        GrowthMetrics.company_id == company.id
+    ).order_by(GrowthMetrics.metric_date.desc()).first()
+
+    comments = db.query(InvestmentComment).filter(
+        InvestmentComment.company_id == company.id
+    ).order_by(InvestmentComment.created_at.desc()).limit(5).all()
+
+    context_parts = [
+        f"Company: {company.company_name}",
+        f"Representative: {company.representative_name or 'Unknown'}",
+        f"Stage: {company.current_stage or 'Unknown'}",
+        f"Deal Status: {company.deal_status or 'Unknown'}",
+        f"Valuation: {company.current_valuation or 'Unknown'} {company.current_currency or 'KRW'}",
+        f"Traffic Score: {company.traffic_score or 'Unknown'} (value: {company.score_value or 0})",
+    ]
+
+    if latest_gm:
+        gm_parts = []
+        if latest_gm.monthly_revenue:
+            gm_parts.append(f"Monthly Revenue: {latest_gm.monthly_revenue}")
+        if latest_gm.mrr:
+            gm_parts.append(f"MRR: {latest_gm.mrr}")
+        if latest_gm.arr:
+            gm_parts.append(f"ARR: {latest_gm.arr}")
+        if latest_gm.mrr_growth_rate_pct is not None:
+            gm_parts.append(f"MRR Growth: {latest_gm.mrr_growth_rate_pct}%")
+        if latest_gm.monthly_burn:
+            gm_parts.append(f"Monthly Burn: {latest_gm.monthly_burn}")
+        if latest_gm.runway_months is not None:
+            gm_parts.append(f"Runway: {latest_gm.runway_months} months")
+        if latest_gm.headcount is not None:
+            gm_parts.append(f"Headcount: {latest_gm.headcount}")
+        if latest_gm.paying_customers is not None:
+            gm_parts.append(f"Paying Customers: {latest_gm.paying_customers}")
+        if latest_gm.last_funding_round:
+            gm_parts.append(f"Last Funding: {latest_gm.last_funding_round}")
+        if latest_gm.investors:
+            gm_parts.append(f"Investors: {latest_gm.investors}")
+        if gm_parts:
+            context_parts.append(f"\nGrowth Data (latest):\n" + "\n".join(gm_parts))
+    else:
+        context_parts.append("\nNo growth data available yet.")
+
+    if comments:
+        comment_texts = [f"- {c.comment_text[:200]}" for c in comments[:5]]
+        context_parts.append(f"\nRecent Comments:\n" + "\n".join(comment_texts))
+
+    company_context = "\n".join(context_parts)
+
+    # Convert history to list of dicts
+    history = [{"role": m.role, "content": m.content} for m in data.history]
+
+    try:
+        reply = research_service.chat(data.message, company_context, history)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    return ChatResponse(reply=reply)
 
 
 @router.get("/history/{company_id}", response_model=list[ResearchLogItem])

@@ -156,6 +156,54 @@ class ResearchService:
         except Exception as e:
             raise ValueError(f"웹 리서치 실패: {str(e)}")
 
+    def chat(self, message: str, company_context: str, history: list[dict]) -> str:
+        """Have a multi-turn conversation about a company's growth and data triangulation."""
+        if not self.client:
+            raise ValueError("AI 서비스를 사용할 수 없습니다. CLAUDE_API_KEY를 확인하세요.")
+
+        system_prompt = f"""You are a senior venture capital analyst assistant helping evaluate Korean startups for follow-on investment decisions. You speak Korean by default unless the user writes in English.
+
+COMPANY CONTEXT:
+{company_context}
+
+YOUR ROLE:
+- Help triangulate growth data when direct metrics are unavailable
+- Suggest alternative data sources and proxy metrics
+- Discuss competitive landscape and market dynamics
+- Provide frameworks for evaluating companies with incomplete data
+- Share approaches for estimating revenue, growth, burn rate from public signals
+- Consider Korean startup ecosystem specifics (TIPS, government grants, local VCs)
+
+TRIANGULATION APPROACHES you can suggest:
+1. Job postings analysis (headcount growth proxy)
+2. App store rankings / web traffic trends
+3. Industry benchmarks by sector and stage
+4. Press releases and funding announcements
+5. LinkedIn employee count tracking
+6. Government registry data (dart.fss.or.kr for Korean companies)
+7. Customer review volume and trends
+8. Social media presence and engagement growth
+9. Partnership and integration announcements
+10. Patent filings and R&D signals
+
+Keep responses concise and actionable. Use Korean unless the user writes in English."""
+
+        messages = []
+        for msg in history:
+            messages.append({"role": msg["role"], "content": msg["content"]})
+        messages.append({"role": "user", "content": message})
+
+        try:
+            response = self.client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2000,
+                system=system_prompt,
+                messages=messages,
+            )
+            return response.content[0].text
+        except Exception as e:
+            raise ValueError(f"채팅 실패: {str(e)}")
+
     def _parse_metrics_response(self, response_text: str) -> dict:
         """Extract JSON from Claude's response, handling markdown code blocks."""
         # Try to extract JSON from markdown code block

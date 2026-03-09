@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   fetchResearchStatus,
@@ -6,7 +6,9 @@ import {
   webResearch,
   approveResearch,
   fetchResearchHistory,
+  chatWithAgent,
 } from '../../api/research'
+import type { ChatMessage } from '../../api/research'
 import type { ResearchResult, ResearchLogItem } from '../../types'
 import { formatDate } from '../../utils/formatters'
 
@@ -15,7 +17,7 @@ interface Props {
   companyName: string
 }
 
-type Tab = 'extract' | 'web' | 'history'
+type Tab = 'extract' | 'web' | 'chat' | 'history'
 
 const METRIC_FIELDS: { key: string; label: string; type: 'number' | 'text' }[] = [
   { key: 'monthly_revenue', label: '월매출', type: 'number' },
@@ -165,6 +167,123 @@ function MetricsReviewForm({
   )
 }
 
+function ChatTab({ companyId }: { companyId: string }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [messages])
+
+  const handleSend = async () => {
+    const text = input.trim()
+    if (!text || isLoading) return
+
+    const userMsg: ChatMessage = { role: 'user', content: text }
+    const updatedMessages = [...messages, userMsg]
+    setMessages(updatedMessages)
+    setInput('')
+    setIsLoading(true)
+
+    try {
+      const { reply } = await chatWithAgent(companyId, text, messages)
+      setMessages([...updatedMessages, { role: 'assistant', content: reply }])
+    } catch (err) {
+      setMessages([
+        ...updatedMessages,
+        { role: 'assistant', content: `오류가 발생했습니다: ${(err as Error).message}` },
+      ])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col mt-2" style={{ height: '400px' }}>
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1"
+      >
+        {messages.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-2xl mb-2">💬</p>
+            <p className="text-sm text-slate-500">성장 데이터 분석에 대해 질문하세요</p>
+            <div className="mt-3 space-y-1">
+              {[
+                '이 회사의 성장률을 추정하려면 어떤 데이터를 봐야 할까요?',
+                '웹에서 직접 매출을 찾을 수 없는 경우 proxy metric은?',
+                '이 단계에서 적절한 밸류에이션 레인지는?',
+              ].map((hint, i) => (
+                <button
+                  key={i}
+                  onClick={() => setInput(hint)}
+                  className="block w-full text-left text-xs text-blue-600 hover:text-blue-800 bg-blue-50 rounded-lg px-3 py-1.5 transition-colors"
+                >
+                  {hint}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+                msg.role === 'user'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-800'
+              }`}
+            >
+              {msg.content}
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-slate-100 rounded-lg px-3 py-2">
+              <span className="flex items-center gap-2 text-sm text-slate-500">
+                <span className="animate-spin h-3 w-3 border-2 border-slate-400 border-t-transparent rounded-full" />
+                생각 중...
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-slate-400"
+          placeholder="질문을 입력하세요..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              handleSend()
+            }
+          }}
+          disabled={isLoading}
+        />
+        <button
+          onClick={handleSend}
+          disabled={!input.trim() || isLoading}
+          className="px-4 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors"
+        >
+          전송
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function HistoryTab({ companyId }: { companyId: string }) {
   const { data: logs } = useQuery({
     queryKey: ['research-history', companyId],
@@ -242,6 +361,7 @@ export default function ResearchPanel({ companyId, companyName }: Props) {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'extract', label: '📋 텍스트 분석' },
     { key: 'web', label: '🔍 웹 리서치' },
+    { key: 'chat', label: '💬 상담' },
     { key: 'history', label: '📜 이력' },
   ]
 
@@ -366,6 +486,8 @@ export default function ResearchPanel({ companyId, companyName }: Props) {
               )}
             </div>
           )}
+
+          {activeTab === 'chat' && <ChatTab companyId={companyId} />}
 
           {activeTab === 'history' && <HistoryTab companyId={companyId} />}
         </>
