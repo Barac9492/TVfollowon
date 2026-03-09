@@ -27,6 +27,7 @@ export interface Company {
   mrr_growth_rate_pct: number | null
   runway_months: number | null
   monthly_revenue: number | null
+  investors: string | null
   top_action_items: ActionItem[]
 }
 
@@ -50,6 +51,7 @@ export interface GrowthMetrics {
   last_funding_date: string | null
   last_funding_amount: number | null
   last_funding_round: string | null
+  investors: string | null
   notes: string | null
 }
 
@@ -123,6 +125,34 @@ export interface SlackStatus {
   connected: boolean
   workspace_name?: string
   message?: string
+}
+
+export interface Investor {
+  name: string
+  round?: string
+  role?: 'lead' | 'follow' | 'unknown'
+}
+
+export interface ResearchStatus {
+  enabled: boolean
+  message: string
+}
+
+export interface ResearchResult {
+  research_id: number
+  metrics: Record<string, unknown>
+  notes: string | null
+  sources: { url: string; title: string }[]
+  confidence: 'high' | 'medium' | 'low'
+}
+
+export interface ResearchLogItem {
+  id: number
+  company_id: string
+  research_type: 'text_extraction' | 'web_research'
+  status: 'pending' | 'approved' | 'rejected'
+  extracted_metrics: string | null
+  created_at: string | null
 }
 
 export interface CompanyFilters {

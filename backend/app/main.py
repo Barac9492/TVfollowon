@@ -21,15 +21,24 @@ def _migrate_columns(engine):
         return
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+
+    # Companies table migrations
     cursor.execute("PRAGMA table_info(companies)")
     existing = {row[1] for row in cursor.fetchall()}
-    migrations = [
+    company_migrations = [
         ("has_growth_data", "INTEGER DEFAULT 0"),
         ("growth_data_completeness", "REAL DEFAULT 0.0"),
     ]
-    for col_name, col_type in migrations:
+    for col_name, col_type in company_migrations:
         if col_name not in existing:
             cursor.execute(f"ALTER TABLE companies ADD COLUMN {col_name} {col_type}")
+
+    # Growth metrics table migrations
+    cursor.execute("PRAGMA table_info(growth_metrics)")
+    gm_existing = {row[1] for row in cursor.fetchall()}
+    if gm_existing and "investors" not in gm_existing:
+        cursor.execute("ALTER TABLE growth_metrics ADD COLUMN investors TEXT")
+
     conn.commit()
     conn.close()
 

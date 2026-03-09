@@ -94,6 +94,7 @@ def list_companies(
             mrr_growth_rate_pct=latest_gm.mrr_growth_rate_pct if latest_gm else None,
             runway_months=latest_gm.runway_months if latest_gm else None,
             monthly_revenue=latest_gm.monthly_revenue if latest_gm else None,
+            investors=latest_gm.investors if latest_gm else None,
             top_action_items=[ActionItem(**a) for a in top_actions],
         )
         items.append(item)
@@ -186,6 +187,7 @@ def get_company_detail(company_id: str, db: Session = Depends(get_db)):
         mrr_growth_rate_pct=latest_gm.mrr_growth_rate_pct if latest_gm else None,
         runway_months=latest_gm.runway_months if latest_gm else None,
         monthly_revenue=latest_gm.monthly_revenue if latest_gm else None,
+        investors=latest_gm.investors if latest_gm else None,
         comments=[CommentItem.model_validate(c) for c in comments],
         metric_snapshots=[MetricSnapshotItem.model_validate(s) for s in snapshots],
         growth_metrics=[GrowthMetricsItem.model_validate(g) for g in growth_metrics],

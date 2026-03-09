@@ -4,8 +4,9 @@ import CompanyHeader from './CompanyHeader'
 import MetricChart from './MetricChart'
 import CommentsList from './CommentsList'
 import SlackPanel from './SlackPanel'
+import ResearchPanel from './ResearchPanel'
 import ActionItemsPanel from './ActionItemsPanel'
-import type { GrowthMetrics } from '../../types'
+import type { GrowthMetrics, Investor } from '../../types'
 import { formatGrowthRate, formatRunway, formatRevenue, formatDate } from '../../utils/formatters'
 
 export default function CompanyDetailPage() {
@@ -56,6 +57,7 @@ export default function CompanyDetailPage() {
         </div>
         <div className="space-y-6">
           <CommentsList comments={company.comments} />
+          <ResearchPanel companyId={company.id} companyName={company.company_name} />
           <SlackPanel companyId={company.id} companyName={company.company_name} />
         </div>
       </div>
@@ -118,6 +120,25 @@ function GrowthDataPanel({ metrics }: { metrics: GrowthMetrics[] }) {
           )}
         </div>
       )}
+
+      {latest.investors && (() => {
+        try {
+          const investors: Investor[] = JSON.parse(latest.investors)
+          if (investors.length === 0) return null
+          return (
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <p className="text-xs text-slate-400 mb-1.5">💰 투자자</p>
+              <div className="flex flex-wrap gap-1.5">
+                {investors.map((inv, i) => (
+                  <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                    {inv.name}{inv.round ? ` (${inv.round})` : ''}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )
+        } catch { return null }
+      })()}
 
       {latest.notes && (
         <p className="mt-3 text-xs text-slate-500 bg-slate-50 rounded p-2">{latest.notes}</p>

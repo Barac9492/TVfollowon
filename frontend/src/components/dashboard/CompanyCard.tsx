@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import type { Company } from '../../types'
+import type { Company, Investor } from '../../types'
 import TrafficBadge from './TrafficBadge'
 import { formatValuation, stageLabel, formatGrowthRate, formatRunway } from '../../utils/formatters'
 
@@ -88,6 +88,18 @@ export default function CompanyCard({ company }: { company: Company }) {
           ))}
         </div>
       )}
+
+      {company.investors && (() => {
+        try {
+          const investors: Investor[] = JSON.parse(company.investors)
+          if (investors.length === 0) return null
+          return (
+            <p className="text-xs text-slate-400 mt-2 truncate">
+              💰 {investors.map(i => i.name).join(', ')}
+            </p>
+          )
+        } catch { return null }
+      })()}
 
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
         <div className="flex items-center gap-2">

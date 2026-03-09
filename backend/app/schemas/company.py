@@ -34,6 +34,8 @@ class CompanyListItem(BaseModel):
     mrr_growth_rate_pct: Optional[float] = None
     runway_months: Optional[float] = None
     monthly_revenue: Optional[float] = None
+    # Investors (latest snapshot)
+    investors: Optional[str] = None
     # Actionable insights (top 1-2 items for card)
     top_action_items: List[ActionItem] = []
 
@@ -61,6 +63,7 @@ class GrowthMetricsItem(BaseModel):
     last_funding_date: Optional[datetime] = None
     last_funding_amount: Optional[float] = None
     last_funding_round: Optional[str] = None
+    investors: Optional[str] = None
     notes: Optional[str] = None
 
     class Config:

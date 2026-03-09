@@ -238,6 +238,7 @@ async def upload_growth(file: UploadFile = File(...), db: Session = Depends(get_
                 last_funding_round=row.get("last_funding_round"),
                 paying_customers=row.get("paying_customers"),
                 ndr_pct=row.get("ndr_pct"),
+                investors=row.get("investors"),
                 notes=row.get("notes"),
                 upload_id=upload.id,
             )

@@ -84,6 +84,9 @@ class GrowthMetrics(Base):
     last_funding_amount = Column(Float, nullable=True)
     last_funding_round = Column(String, nullable=True)
 
+    # Investors
+    investors = Column(Text, nullable=True)  # JSON: [{"name":"...","round":"...","role":"lead|follow"}]
+
     # Meta
     notes = Column(Text, nullable=True)
     upload_id = Column(Integer, ForeignKey("upload_history.id"), nullable=True)
