@@ -55,7 +55,7 @@ const TRIGGER_LABELS: Record<string, string> = {
   unknown: '📊 점수 업데이트',
 }
 
-export default function ScoreHistoryPanel({ history, companyName }: Props) {
+export default function ScoreHistoryPanel({ history }: Props) {
   // Reverse chronological display (newest first) but chart needs chronological
   const chronological = useMemo(
     () => [...history].reverse(),
@@ -73,8 +73,6 @@ export default function ScoreHistoryPanel({ history, companyName }: Props) {
 
   const latest = history[0]
   const maxScore = 100
-  const minInHistory = Math.min(...history.map((h) => h.score_value))
-  const maxInHistory = Math.max(...history.map((h) => h.score_value))
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5">
