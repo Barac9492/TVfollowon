@@ -129,61 +129,97 @@ class ResearchService:
 
         context_hint = f"\n추가 정보: {additional_context}" if additional_context else ""
 
+        user_content = (
+            f"다음 한국 스타트업을 조사하세요: {company_name}{context_hint}\n\n"
+            f"'{company_name} 투자 유치', '{company_name} 시리즈', '{company_name} 매출' 등의 "
+            "한국어 키워드로 검색하세요. 영어로도 검색해보세요. "
+            "투자 라운드, 투자자, 매출, 팀 규모, 성장 지표를 찾아 구조화된 JSON으로 제공하세요."
+        )
+        tool_spec = {
+            "type": "web_search_20250305",
+            "name": "web_search",
+            "max_uses": 10,
+            "user_location": {
+                "type": "approximate",
+                "country": "KR",
+                "timezone": "Asia/Seoul",
+            },
+        }
+
         try:
+            messages = [{"role": "user", "content": user_content}]
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4096,
                 system=WEB_RESEARCH_SYSTEM_PROMPT,
-                messages=[{
-                    "role": "user",
-                    "content": (
-                        f"다음 한국 스타트업을 조사하세요: {company_name}{context_hint}\n\n"
-                        f"'{company_name} 투자 유치', '{company_name} 시리즈', '{company_name} 매출' 등의 "
-                        "한국어 키워드로 검색하세요. 영어로도 검색해보세요. "
-                        "투자 라운드, 투자자, 매출, 팀 규모, 성장 지표를 찾아 구조화된 JSON으로 제공하세요."
-                    ),
-                }],
-                tools=[{
-                    "type": "web_search_20250305",
-                    "name": "web_search",
-                    "max_uses": 10,
-                    "user_location": {
-                        "type": "approximate",
-                        "country": "KR",
-                        "timezone": "Asia/Seoul",
-                    },
-                }],
+                messages=messages,
+                tools=[tool_spec],
             )
+
+            # Handle pause_turn: server-side web search loop may hit iteration
+            # limit. Send partial response back to continue.
+            continuation_count = 0
+            while response.stop_reason == "pause_turn" and continuation_count < 3:
+                continuation_count += 1
+                logger.info(
+                    "web_research pause_turn #%d — resuming (blocks so far: %d)",
+                    continuation_count,
+                    len(response.content),
+                )
+                messages.append({"role": "assistant", "content": response.content})
+                messages.append({"role": "user", "content": "계속하세요."})
+                response = self.client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=4096,
+                    system=WEB_RESEARCH_SYSTEM_PROMPT,
+                    messages=messages,
+                    tools=[tool_spec],
+                )
 
             # Log response structure for debugging
             logger.info(
-                "web_research response: stop_reason=%s, blocks=%d",
+                "web_research response: stop_reason=%s, blocks=%d, continuations=%d",
                 response.stop_reason,
                 len(response.content),
+                continuation_count,
             )
             for i, block in enumerate(response.content):
                 block_type = getattr(block, "type", "unknown")
-                logger.info("  block[%d] type=%s", i, block_type)
+                text_len = len(block.text) if hasattr(block, "text") else 0
+                logger.info("  block[%d] type=%s text_len=%d", i, block_type, text_len)
 
-            # Extract the final text block (Claude may return tool_use + text blocks)
-            final_text = ""
+            # Collect ALL text blocks (not just the last one)
+            text_parts = []
             for block in response.content:
                 if hasattr(block, "text"):
-                    final_text = block.text
+                    text_parts.append(block.text)
+            combined_text = "\n".join(text_parts) if text_parts else ""
 
             logger.info(
-                "web_research final_text length=%d, preview=%s",
-                len(final_text),
-                final_text[:300] if final_text else "(empty)",
+                "web_research combined_text length=%d, parts=%d, preview=%s",
+                len(combined_text),
+                len(text_parts),
+                combined_text[:300] if combined_text else "(empty)",
             )
 
-            metrics = self._parse_metrics_response(final_text)
+            # Try to parse JSON from combined text first; if that fails and we
+            # have multiple parts, try each part individually (the JSON is often
+            # in the last text block)
+            metrics = self._parse_metrics_response(combined_text)
+
+            # If combined text didn't yield good metrics, try the last text block
+            if not metrics.get("investors") and not metrics.get("last_funding_round"):
+                for part in reversed(text_parts):
+                    candidate = self._parse_metrics_response(part)
+                    if candidate.get("investors") or candidate.get("last_funding_round"):
+                        metrics = candidate
+                        break
 
             # Log investor results specifically
             investors = metrics.get("investors", [])
             logger.info("web_research investors found: %d — %s", len(investors), investors)
 
-            return {"metrics": metrics, "raw": final_text}
+            return {"metrics": metrics, "raw": combined_text}
         except Exception as e:
             logger.exception("web_research failed for company")
             raise ValueError(f"웹 리서치 실패: {str(e)}")

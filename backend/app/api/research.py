@@ -455,7 +455,7 @@ def get_research_history(company_id: str, db: Session = Depends(get_db)):
 
 @router.get("/debug-search/{company_id}")
 def debug_search(company_id: str, db: Session = Depends(get_db)):
-    """Debug endpoint: test web search for a company and return raw results."""
+    """Debug endpoint: raw API call to diagnose web search block structure."""
     if not research_service.enabled:
         return {"error": "AI 서비스 비활성화"}
 
@@ -470,13 +470,57 @@ def debug_search(company_id: str, db: Session = Depends(get_db)):
         sdk_version = "unknown"
 
     try:
-        result = research_service.web_research(company.company_name)
+        # Make a raw API call to inspect every response block
+        client = research_service.client
+        name = company.company_name
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4096,
+            system=("한국 스타트업 투자 유치 정보를 검색하여 JSON으로 반환하세요. "
+                    "investors 배열에 투자자 이름, 라운드, 역할을 포함하세요."),
+            messages=[{
+                "role": "user",
+                "content": f"'{name} 투자 유치' 검색 후 투자자, 금액, 라운드를 JSON으로 반환하세요.",
+            }],
+            tools=[{
+                "type": "web_search_20250305",
+                "name": "web_search",
+                "max_uses": 5,
+                "user_location": {
+                    "type": "approximate",
+                    "country": "KR",
+                    "timezone": "Asia/Seoul",
+                },
+            }],
+        )
+
+        # Inspect every block in the response
+        blocks_info = []
+        for i, block in enumerate(response.content):
+            block_type = getattr(block, "type", "unknown")
+            info = {"index": i, "type": block_type}
+            if hasattr(block, "text"):
+                info["text_length"] = len(block.text)
+                info["text_preview"] = block.text[:400]
+            if hasattr(block, "name"):
+                info["tool_name"] = block.name
+            if hasattr(block, "content") and block_type == "web_search_tool_result":
+                search_results = getattr(block, "content", [])
+                info["search_result_count"] = len(search_results) if isinstance(search_results, list) else "N/A"
+            blocks_info.append(info)
+
+        # Also run through the full web_research pipeline
+        result = research_service.web_research(name)
         metrics = result["metrics"]
+
         return {
-            "company_name": company.company_name,
+            "company_name": name,
             "sdk_version": sdk_version,
-            "raw_response_length": len(result.get("raw", "")),
-            "raw_response_preview": result.get("raw", "")[:500],
+            "stop_reason": response.stop_reason,
+            "total_blocks": len(response.content),
+            "blocks": blocks_info,
+            "pipeline_raw_length": len(result.get("raw", "")),
+            "pipeline_raw_preview": result.get("raw", "")[:500],
             "investors_found": metrics.get("investors", []),
             "notes": metrics.get("notes", ""),
             "sources": metrics.get("sources", []),
@@ -486,4 +530,5 @@ def debug_search(company_id: str, db: Session = Depends(get_db)):
             },
         }
     except Exception as e:
-        return {"error": str(e), "sdk_version": sdk_version}
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc(), "sdk_version": sdk_version}
