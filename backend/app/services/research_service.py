@@ -136,7 +136,7 @@ class ResearchService:
                 tools=[{
                     "type": "web_search_20250305",
                     "name": "web_search",
-                    "max_uses": 5,
+                    "max_uses": 10,
                     "user_location": {
                         "type": "approximate",
                         "country": "KR",
@@ -163,10 +163,13 @@ class ResearchService:
 
         system_prompt = f"""You are a senior venture capital analyst assistant helping evaluate Korean startups for follow-on investment decisions. You speak Korean by default unless the user writes in English.
 
+You have web search capability. When the user asks about news, articles, funding announcements, or any information that requires up-to-date data, USE web search proactively. Do not say you cannot search — you CAN.
+
 COMPANY CONTEXT:
 {company_context}
 
 YOUR ROLE:
+- Search the web to find latest news, articles, and announcements about the company
 - Help triangulate growth data when direct metrics are unavailable
 - Suggest alternative data sources and proxy metrics
 - Discuss competitive landscape and market dynamics
@@ -186,6 +189,8 @@ TRIANGULATION APPROACHES you can suggest:
 9. Partnership and integration announcements
 10. Patent filings and R&D signals
 
+When the user asks you to find articles, news, or any web-based information, ALWAYS use web search first before responding. Include source URLs when citing information from searches.
+
 Keep responses concise and actionable. Use Korean unless the user writes in English."""
 
         messages = []
@@ -196,11 +201,27 @@ Keep responses concise and actionable. Use Korean unless the user writes in Engl
         try:
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=2000,
+                max_tokens=4096,
                 system=system_prompt,
                 messages=messages,
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_uses": 10,
+                    "user_location": {
+                        "type": "approximate",
+                        "country": "KR",
+                        "timezone": "Asia/Seoul",
+                    },
+                }],
             )
-            return response.content[0].text
+
+            # Extract all text blocks (Claude may return tool_use + text blocks)
+            text_parts = []
+            for block in response.content:
+                if hasattr(block, "text"):
+                    text_parts.append(block.text)
+            return "\n".join(text_parts) if text_parts else "응답을 생성할 수 없습니다."
         except Exception as e:
             raise ValueError(f"채팅 실패: {str(e)}")
 
