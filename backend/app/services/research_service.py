@@ -1,8 +1,11 @@
 from __future__ import annotations
 """AI-powered company research using Claude API."""
 import json
+import logging
 import re
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 EXTRACTION_SYSTEM_PROMPT = """You are a venture capital analyst assistant. Extract structured growth metrics from the provided text about a startup company.
@@ -152,15 +155,37 @@ class ResearchService:
                 }],
             )
 
+            # Log response structure for debugging
+            logger.info(
+                "web_research response: stop_reason=%s, blocks=%d",
+                response.stop_reason,
+                len(response.content),
+            )
+            for i, block in enumerate(response.content):
+                block_type = getattr(block, "type", "unknown")
+                logger.info("  block[%d] type=%s", i, block_type)
+
             # Extract the final text block (Claude may return tool_use + text blocks)
             final_text = ""
             for block in response.content:
                 if hasattr(block, "text"):
                     final_text = block.text
 
+            logger.info(
+                "web_research final_text length=%d, preview=%s",
+                len(final_text),
+                final_text[:300] if final_text else "(empty)",
+            )
+
             metrics = self._parse_metrics_response(final_text)
+
+            # Log investor results specifically
+            investors = metrics.get("investors", [])
+            logger.info("web_research investors found: %d — %s", len(investors), investors)
+
             return {"metrics": metrics, "raw": final_text}
         except Exception as e:
+            logger.exception("web_research failed for company")
             raise ValueError(f"웹 리서치 실패: {str(e)}")
 
     def chat(self, message: str, company_context: str, history: list[dict]) -> str:
@@ -226,13 +251,28 @@ TRIANGULATION 방법:
                 }],
             )
 
+            # Log response structure
+            logger.info(
+                "chat response: stop_reason=%s, blocks=%d",
+                response.stop_reason,
+                len(response.content),
+            )
+            for i, block in enumerate(response.content):
+                block_type = getattr(block, "type", "unknown")
+                has_text = hasattr(block, "text")
+                logger.info("  block[%d] type=%s has_text=%s", i, block_type, has_text)
+
             # Extract all text blocks (Claude may return tool_use + text blocks)
             text_parts = []
             for block in response.content:
                 if hasattr(block, "text"):
                     text_parts.append(block.text)
-            return "\n".join(text_parts) if text_parts else "응답을 생성할 수 없습니다."
+
+            result = "\n".join(text_parts) if text_parts else "응답을 생성할 수 없습니다."
+            logger.info("chat result length=%d", len(result))
+            return result
         except Exception as e:
+            logger.exception("chat failed")
             raise ValueError(f"채팅 실패: {str(e)}")
 
     def _parse_metrics_response(self, response_text: str) -> dict:

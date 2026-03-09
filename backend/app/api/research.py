@@ -451,3 +451,39 @@ def get_research_history(company_id: str, db: Session = Depends(get_db)):
         .all()
     )
     return [ResearchLogItem.model_validate(log) for log in logs]
+
+
+@router.get("/debug-search/{company_id}")
+def debug_search(company_id: str, db: Session = Depends(get_db)):
+    """Debug endpoint: test web search for a company and return raw results."""
+    if not research_service.enabled:
+        return {"error": "AI 서비스 비활성화"}
+
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        return {"error": "회사 없음"}
+
+    try:
+        import anthropic
+        sdk_version = anthropic.__version__
+    except Exception:
+        sdk_version = "unknown"
+
+    try:
+        result = research_service.web_research(company.company_name)
+        metrics = result["metrics"]
+        return {
+            "company_name": company.company_name,
+            "sdk_version": sdk_version,
+            "raw_response_length": len(result.get("raw", "")),
+            "raw_response_preview": result.get("raw", "")[:500],
+            "investors_found": metrics.get("investors", []),
+            "notes": metrics.get("notes", ""),
+            "sources": metrics.get("sources", []),
+            "all_non_null_fields": {
+                k: v for k, v in metrics.items()
+                if v is not None and v != [] and v != ""
+            },
+        }
+    except Exception as e:
+        return {"error": str(e), "sdk_version": sdk_version}
