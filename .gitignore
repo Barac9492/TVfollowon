@@ -1,0 +1,14 @@
+.DS_Store
+.env
+*.pyc
+__pycache__/
+node_modules/
+dist/
+backend/venv/
+data/
+.claude/
+tasks/
+*.xlsx
+*.png
+*.md
+!frontend/README.md
